@@ -1,0 +1,82 @@
+#!/usr/bin/env python3
+
+import sys
+import socket
+import struct
+from struct import *
+import http
+import urllib
+from urllib.parse import urlparse
+import rawsocket
+import incoming
+import outgoing
+
+# define some constants
+
+HTTP_VERSION = "HTTP/1.0"
+LINE_ENDING = "\r\n"  # CRLF
+
+# to parse arguments from command line
+def parse_arg(arg):
+    arg_list = arg.split("/")
+
+    # only skip the last part as that's filename or "/" when filename is not provided
+    url = "/".join(arg_list[:-1])
+    filename = arg_list[-1]
+
+    # in the case of filename not provided or argument ending in "/"
+    if filename == "":
+        filename = "index.html"
+
+    print("The URL is:", url)
+    print("The filename is:", filename)
+
+    return url, filename
+
+# to write web data to the created file
+def write_to_file(data, path):
+    # open a file at the specified path with writing permissions
+    file = open(path, "w")
+    file.write(data)
+    file.close()
+
+# get web data from the relevant webpage by sending an HTTP GET request
+def get_data(sock, url):
+    parsed_url = urlparse(url)
+    
+    # connect socket to the specified url
+    sock.connect_socket(parsed_url.netloc, 80)
+
+    # build http request
+    request = "GET %s %s%s" % (parsed_url.path, HTTP_VERSION, LINE_ENDING)
+    request += "Host: %s%s" % (parsed_url.netloc, LINE_ENDING)
+    request += LINE_ENDING
+
+    # send http request
+    sock.send(request)
+
+    # get data and parse it
+    data = sock.rcv()
+
+    sock.close()  # finally close the opened connection
+
+    return data
+
+
+def main():
+
+    # parse arguments from command line first
+    arg = sys.argv[1]
+
+    parsed_arg = parse_arg(arg)
+    url = parsed_arg[0]
+    filename = parsed_arg[1]
+
+    sock = rawsocket.RawSocket(url)
+    data = get_data(sock, url)
+
+    write_to_file(data, filename)
+
+
+if __name__ == "__main__":
+    main()
